@@ -1,13 +1,31 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const pool = require('./db');
 
 const schemaPath = path.join(__dirname, 'schema.sql');
-const dataDir = path.join(__dirname, 'data');
+const isVercel = Boolean(process.env.VERCEL);
+const dataDir = isVercel
+  ? path.join(os.tmpdir(), 'portaria-app')
+  : path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'local-db.json');
 
 let mode = 'memory';
 let lastDatabaseError = null;
+let memoryData = createInitialData();
+
+function createInitialData() {
+  return {
+    counters: {
+      moradores: 0,
+      visitantes: 0,
+      encomendas: 0,
+    },
+    moradores: [],
+    visitantes: [],
+    encomendas: [],
+  };
+}
 
 function loadEnvFile() {
   const envPath = path.join(__dirname, '.env');
@@ -42,26 +60,25 @@ function ensureLocalStore() {
   }
 
   if (!fs.existsSync(dataFile)) {
-    const initialData = {
-      counters: {
-        moradores: 0,
-        visitantes: 0,
-        encomendas: 0,
-      },
-      moradores: [],
-      visitantes: [],
-      encomendas: [],
-    };
-    fs.writeFileSync(dataFile, JSON.stringify(initialData, null, 2));
+    fs.writeFileSync(dataFile, JSON.stringify(createInitialData(), null, 2));
   }
 }
 
 function readLocalData() {
+  if (mode === 'memory') {
+    return memoryData;
+  }
+
   ensureLocalStore();
   return JSON.parse(fs.readFileSync(dataFile, 'utf8'));
 }
 
 function writeLocalData(data) {
+  if (mode === 'memory') {
+    memoryData = data;
+    return;
+  }
+
   ensureLocalStore();
   fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
 }
@@ -100,11 +117,19 @@ async function initialize() {
     lastDatabaseError = null;
     console.log('Armazenamento ativo: PostgreSQL');
   } catch (error) {
-    mode = 'local';
     lastDatabaseError = error;
-    ensureLocalStore();
-    console.warn('PostgreSQL indisponivel. Usando armazenamento local em arquivo.');
-    console.warn(error.message);
+
+    try {
+      ensureLocalStore();
+      mode = 'local';
+      console.warn('PostgreSQL indisponivel. Usando armazenamento local em arquivo.');
+      console.warn(error.message);
+    } catch (fileError) {
+      mode = 'memory';
+      console.warn('PostgreSQL e armazenamento em arquivo indisponiveis. Usando memoria temporaria.');
+      console.warn(error.message);
+      console.warn(fileError.message);
+    }
   }
 }
 
@@ -119,12 +144,21 @@ async function healthCheck() {
       };
     } catch (error) {
       lastDatabaseError = error;
-      mode = 'local';
-      ensureLocalStore();
+
+      try {
+        ensureLocalStore();
+        mode = 'local';
+      } catch {
+        mode = 'memory';
+      }
+
       return {
         ok: true,
-        storage: 'local',
-        message: 'PostgreSQL indisponivel. App funcionando com armazenamento local.',
+        storage: mode,
+        message:
+          mode === 'local'
+            ? 'PostgreSQL indisponivel. App funcionando com armazenamento local.'
+            : 'PostgreSQL indisponivel. App funcionando com memoria temporaria.',
         databaseError: error.message,
       };
     }
@@ -132,8 +166,11 @@ async function healthCheck() {
 
   return {
     ok: true,
-    storage: 'local',
-    message: 'App funcionando com armazenamento local.',
+    storage: mode,
+    message:
+      mode === 'local'
+        ? 'App funcionando com armazenamento local.'
+        : 'App funcionando com memoria temporaria.',
     databaseError: lastDatabaseError ? lastDatabaseError.message : null,
   };
 }
