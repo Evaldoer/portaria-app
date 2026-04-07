@@ -21,6 +21,11 @@ const elements = {
   moradorForm: document.getElementById('morador-form'),
   visitanteForm: document.getElementById('visitante-form'),
   encomendaForm: document.getElementById('encomenda-form'),
+  fotoRecebidaStatus: document.getElementById('foto-recebida-status'),
+  fotoRetiradaStatus: document.getElementById('foto-retirada-status'),
+  imageModal: document.getElementById('image-modal'),
+  imageModalPreview: document.getElementById('image-modal-preview'),
+  imageModalClose: document.getElementById('image-modal-close'),
 };
 
 const formConfigs = {
@@ -94,6 +99,10 @@ function resetForm(key) {
   config.form.reset();
   config.form.elements.id.value = '';
   setFormMode(key, null);
+
+  if (key === 'encomendas') {
+    updatePhotoStatus();
+  }
 }
 
 function createActionButtons(type, id) {
@@ -105,10 +114,67 @@ function createActionButtons(type, id) {
   `;
 }
 
+function createPhotoButton(type, id, exists) {
+  if (!exists) {
+    return '<span class="photo-empty">Sem foto</span>';
+  }
+
+  return `<button type="button" class="table-button" data-action="view-${type}" data-id="${id}">Ver foto</button>`;
+}
+
+function updatePhotoStatus() {
+  const editing = state.editing.encomendas;
+  const recebidaInput = elements.encomendaForm.elements.foto_recebida_arquivo;
+  const retiradaInput = elements.encomendaForm.elements.foto_retirada_arquivo;
+
+  const recebidaText = recebidaInput.files[0]
+    ? `Nova foto de recebimento: ${recebidaInput.files[0].name}`
+    : editing?.foto_recebida
+      ? 'Foto de recebimento atual salva.'
+      : 'Sem foto de recebimento selecionada.';
+
+  const retiradaText = retiradaInput.files[0]
+    ? `Nova foto de retirada: ${retiradaInput.files[0].name}`
+    : editing?.foto_retirada
+      ? 'Foto de retirada atual salva.'
+      : 'Sem foto de retirada selecionada.';
+
+  elements.fotoRecebidaStatus.textContent = recebidaText;
+  elements.fotoRetiradaStatus.textContent = retiradaText;
+}
+
+function openImageModal(src) {
+  elements.imageModalPreview.src = src;
+  elements.imageModal.classList.remove('hidden');
+}
+
+function closeImageModal() {
+  elements.imageModalPreview.src = '';
+  elements.imageModal.classList.add('hidden');
+}
+
+async function fileToDataUrl(file) {
+  if (!file) {
+    return null;
+  }
+
+  const maxFileSize = 4 * 1024 * 1024;
+  if (file.size > maxFileSize) {
+    throw new Error('A imagem precisa ter no maximo 4 MB.');
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 function renderMoradores() {
   if (!state.moradores.length) {
     elements.moradoresList.innerHTML =
-      '<tr><td colspan="3" class="empty-state">Nenhum morador cadastrado.</td></tr>';
+      '<tr><td colspan="4" class="empty-state">Nenhum morador cadastrado.</td></tr>';
     return;
   }
 
@@ -153,7 +219,7 @@ function renderVisitantes() {
 function renderEncomendas() {
   if (!state.encomendas.length) {
     elements.encomendasList.innerHTML =
-      '<tr><td colspan="5" class="empty-state">Nenhuma encomenda cadastrada.</td></tr>';
+      '<tr><td colspan="7" class="empty-state">Nenhuma encomenda cadastrada.</td></tr>';
     return;
   }
 
@@ -171,6 +237,8 @@ function renderEncomendas() {
               <option value="retirada" ${encomenda.status === 'retirada' ? 'selected' : ''}>Retirada</option>
             </select>
           </td>
+          <td>${createPhotoButton('foto-recebida', encomenda.id, Boolean(encomenda.foto_recebida))}</td>
+          <td>${createPhotoButton('foto-retirada', encomenda.id, Boolean(encomenda.foto_retirada))}</td>
           <td>${createActionButtons('encomenda', encomenda.id)}</td>
         </tr>
       `
@@ -255,6 +323,23 @@ function bindRowActions() {
         elements.encomendaForm.elements.morador_id.value = String(encomenda.morador_id);
         elements.encomendaForm.elements.status.value = encomenda.status;
         setFormMode('encomendas', encomenda);
+        updatePhotoStatus();
+        return;
+      }
+
+      if (action === 'view-foto-recebida') {
+        const encomenda = state.encomendas.find((item) => item.id === itemId);
+        if (encomenda?.foto_recebida) {
+          openImageModal(encomenda.foto_recebida);
+        }
+        return;
+      }
+
+      if (action === 'view-foto-retirada') {
+        const encomenda = state.encomendas.find((item) => item.id === itemId);
+        if (encomenda?.foto_retirada) {
+          openImageModal(encomenda.foto_retirada);
+        }
         return;
       }
 
@@ -381,14 +466,24 @@ elements.encomendaForm.addEventListener('submit', async (event) => {
 
   const formData = new FormData(event.target);
   const payload = Object.fromEntries(formData.entries());
+  const editingItem = state.editing.encomendas;
 
   try {
+    const fotoRecebida = await fileToDataUrl(
+      elements.encomendaForm.elements.foto_recebida_arquivo.files[0]
+    );
+    const fotoRetirada = await fileToDataUrl(
+      elements.encomendaForm.elements.foto_retirada_arquivo.files[0]
+    );
+
     await request(payload.id ? `/api/encomendas/${payload.id}` : '/api/encomendas', {
       method: payload.id ? 'PUT' : 'POST',
       body: JSON.stringify({
         descricao: payload.descricao,
         morador_id: Number(payload.morador_id),
         status: payload.status,
+        foto_recebida: fotoRecebida || editingItem?.foto_recebida || null,
+        foto_retirada: fotoRetirada || editingItem?.foto_retirada || null,
       }),
     });
     resetForm('encomendas');
@@ -396,6 +491,15 @@ elements.encomendaForm.addEventListener('submit', async (event) => {
     showToast(payload.id ? 'Encomenda atualizada com sucesso.' : 'Encomenda cadastrada com sucesso.');
   } catch (error) {
     showToast(error.message, true);
+  }
+});
+
+elements.encomendaForm.elements.foto_recebida_arquivo.addEventListener('change', updatePhotoStatus);
+elements.encomendaForm.elements.foto_retirada_arquivo.addEventListener('change', updatePhotoStatus);
+elements.imageModalClose.addEventListener('click', closeImageModal);
+elements.imageModal.addEventListener('click', (event) => {
+  if (event.target === elements.imageModal) {
+    closeImageModal();
   }
 });
 

@@ -8,8 +8,30 @@ const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '12mb' }));
+app.use(express.urlencoded({ extended: true, limit: '12mb' }));
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use((error, req, res, next) => {
+  if (error?.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: 'Imagem muito grande. Envie uma foto menor.',
+    });
+  }
+
+  if (error) {
+    console.error('Erro na requisicao:', error);
+    return res.status(500).json({ error: 'Erro interno ao processar a requisicao.' });
+  }
+
+  next();
+});
 
 app.get('/api/health', async (req, res) => {
   const status = await storage.healthCheck();
@@ -171,7 +193,7 @@ app.get('/api/encomendas', async (req, res) => {
 });
 
 app.post('/api/encomendas', async (req, res) => {
-  const { descricao, morador_id, status } = req.body;
+  const { descricao, morador_id, status, foto_recebida, foto_retirada } = req.body;
 
   if (!descricao || !morador_id) {
     return res
@@ -184,6 +206,8 @@ app.post('/api/encomendas', async (req, res) => {
       descricao,
       morador_id: Number(morador_id),
       status,
+      foto_recebida,
+      foto_retirada,
     });
     res.status(201).json(encomenda);
   } catch (error) {
@@ -194,7 +218,7 @@ app.post('/api/encomendas', async (req, res) => {
 
 app.put('/api/encomendas/:id', async (req, res) => {
   const { id } = req.params;
-  const { descricao, morador_id, status } = req.body;
+  const { descricao, morador_id, status, foto_recebida, foto_retirada } = req.body;
 
   if (!descricao || !morador_id) {
     return res
@@ -207,6 +231,8 @@ app.put('/api/encomendas/:id', async (req, res) => {
       descricao,
       morador_id: Number(morador_id),
       status,
+      foto_recebida,
+      foto_retirada,
     });
 
     if (!encomenda) {

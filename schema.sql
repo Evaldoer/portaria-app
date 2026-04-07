@@ -17,5 +17,7 @@ CREATE TABLE IF NOT EXISTS encomendas (
   id SERIAL PRIMARY KEY,
   descricao VARCHAR(200),
   morador_id INT REFERENCES moradores(id),
-  status VARCHAR(20) DEFAULT 'pendente'
+  status VARCHAR(20) DEFAULT 'pendente',
+  foto_recebida TEXT,
+  foto_retirada TEXT
 );

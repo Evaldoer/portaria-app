@@ -104,18 +104,39 @@
 
           <form id="encomenda-form" class="form-grid">
             <input type="hidden" name="id" />
-            <input name="descricao" placeholder="Descricao da encomenda" required />
-            <select name="morador_id" id="encomenda-morador" required>
-              <option value="">Selecione o morador</option>
-            </select>
-            <select name="status">
-              <option value="pendente">Pendente</option>
-              <option value="recebida">Recebida</option>
-              <option value="retirada">Retirada</option>
-            </select>
+            <label class="field-group">
+              <span class="field-label">Descricao</span>
+              <input name="descricao" placeholder="Descricao da encomenda" required />
+            </label>
+            <label class="field-group">
+              <span class="field-label">Morador</span>
+              <select name="morador_id" id="encomenda-morador" required>
+                <option value="">Selecione o morador</option>
+              </select>
+            </label>
+            <label class="field-group">
+              <span class="field-label">Status</span>
+              <select name="status">
+                <option value="pendente">Pendente</option>
+                <option value="recebida">Recebida</option>
+                <option value="retirada">Retirada</option>
+              </select>
+            </label>
+            <label class="field-group">
+              <span class="field-label">Foto de recebimento</span>
+              <input type="file" name="foto_recebida_arquivo" accept="image/*" />
+            </label>
+            <label class="field-group">
+              <span class="field-label">Foto de retirada</span>
+              <input type="file" name="foto_retirada_arquivo" accept="image/*" />
+            </label>
             <button type="submit" data-submit-label>Cadastrar encomenda</button>
             <button type="button" class="secondary-button hidden" data-cancel-button>Cancelar</button>
           </form>
+          <div class="photo-help">
+            <span id="foto-recebida-status">Sem foto de recebimento selecionada.</span>
+            <span id="foto-retirada-status">Sem foto de retirada selecionada.</span>
+          </div>
 
           <div class="table-wrap">
             <table>
@@ -125,6 +146,8 @@
                   <th>Morador</th>
                   <th>Apartamento</th>
                   <th>Status</th>
+                  <th>Foto recebida</th>
+                  <th>Foto retirada</th>
                   <th>Acoes</th>
                 </tr>
               </thead>
@@ -136,6 +159,12 @@
     </div>
 
     <div id="toast" class="toast hidden"></div>
+    <div id="image-modal" class="image-modal hidden">
+      <div class="image-modal-card">
+        <button type="button" id="image-modal-close" class="image-modal-close">Fechar</button>
+        <img id="image-modal-preview" alt="Foto da encomenda" />
+      </div>
+    </div>
     <script src="/app.js"></script>
   </body>
 </html>

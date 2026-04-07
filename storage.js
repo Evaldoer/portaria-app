@@ -93,6 +93,13 @@ async function ensurePostgresSchema() {
   for (const statement of statements) {
     await pool.query(statement);
   }
+
+  await pool.query(
+    'ALTER TABLE encomendas ADD COLUMN IF NOT EXISTS foto_recebida TEXT'
+  );
+  await pool.query(
+    'ALTER TABLE encomendas ADD COLUMN IF NOT EXISTS foto_retirada TEXT'
+  );
 }
 
 function getMoradorFromLocal(data, id) {
@@ -381,6 +388,8 @@ async function listEncomendas() {
          encomendas.descricao,
          encomendas.status,
          encomendas.morador_id,
+         encomendas.foto_recebida,
+         encomendas.foto_retirada,
          moradores.nome AS morador_nome,
          moradores.apartamento
        FROM encomendas
@@ -403,13 +412,19 @@ async function listEncomendas() {
     .sort((a, b) => b.id - a.id);
 }
 
-async function createEncomenda({ descricao, morador_id, status }) {
+async function createEncomenda({
+  descricao,
+  morador_id,
+  status,
+  foto_recebida,
+  foto_retirada,
+}) {
   if (mode === 'postgres') {
     const result = await pool.query(
-      `INSERT INTO encomendas (descricao, morador_id, status)
-       VALUES ($1, $2, COALESCE($3, 'pendente'))
-       RETURNING id, descricao, morador_id, status`,
-      [descricao, morador_id, status]
+      `INSERT INTO encomendas (descricao, morador_id, status, foto_recebida, foto_retirada)
+       VALUES ($1, $2, COALESCE($3, 'pendente'), $4, $5)
+       RETURNING id, descricao, morador_id, status, foto_recebida, foto_retirada`,
+      [descricao, morador_id, status, foto_recebida || null, foto_retirada || null]
     );
     return result.rows[0];
   }
@@ -425,6 +440,8 @@ async function createEncomenda({ descricao, morador_id, status }) {
     descricao,
     morador_id,
     status: status || 'pendente',
+    foto_recebida: foto_recebida || null,
+    foto_retirada: foto_retirada || null,
   };
 
   data.encomendas.push(encomenda);
@@ -432,14 +449,28 @@ async function createEncomenda({ descricao, morador_id, status }) {
   return encomenda;
 }
 
-async function updateEncomenda(id, { descricao, morador_id, status }) {
+async function updateEncomenda(
+  id,
+  { descricao, morador_id, status, foto_recebida, foto_retirada }
+) {
   if (mode === 'postgres') {
     const result = await pool.query(
       `UPDATE encomendas
-       SET descricao = $1, morador_id = $2, status = COALESCE($3, status)
-       WHERE id = $4
-       RETURNING id, descricao, morador_id, status`,
-      [descricao, morador_id, status, id]
+       SET descricao = $1,
+           morador_id = $2,
+           status = COALESCE($3, status),
+           foto_recebida = $4,
+           foto_retirada = $5
+       WHERE id = $6
+       RETURNING id, descricao, morador_id, status, foto_recebida, foto_retirada`,
+      [
+        descricao,
+        morador_id,
+        status,
+        foto_recebida || null,
+        foto_retirada || null,
+        id,
+      ]
     );
     return result.rows[0] || null;
   }
@@ -459,6 +490,8 @@ async function updateEncomenda(id, { descricao, morador_id, status }) {
   encomenda.descricao = descricao;
   encomenda.morador_id = morador_id;
   encomenda.status = status || encomenda.status;
+  encomenda.foto_recebida = foto_recebida || null;
+  encomenda.foto_retirada = foto_retirada || null;
   writeLocalData(data);
   return encomenda;
 }
@@ -469,7 +502,7 @@ async function updateEncomendaStatus(id, status) {
       `UPDATE encomendas
        SET status = $1
        WHERE id = $2
-       RETURNING id, descricao, morador_id, status`,
+       RETURNING id, descricao, morador_id, status, foto_recebida, foto_retirada`,
       [status, id]
     );
     return result.rows[0] || null;
