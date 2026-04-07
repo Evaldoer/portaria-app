@@ -1,0 +1,321 @@
+const fs = require('fs');
+const path = require('path');
+const pool = require('./db');
+
+const schemaPath = path.join(__dirname, 'schema.sql');
+const dataDir = path.join(__dirname, 'data');
+const dataFile = path.join(dataDir, 'local-db.json');
+
+let mode = 'memory';
+let lastDatabaseError = null;
+
+function loadEnvFile() {
+  const envPath = path.join(__dirname, '.env');
+  if (!fs.existsSync(envPath)) {
+    return;
+  }
+
+  const content = fs.readFileSync(envPath, 'utf8');
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf('=');
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed.slice(separatorIndex + 1).trim();
+
+    if (key && !process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+}
+
+function ensureLocalStore() {
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+
+  if (!fs.existsSync(dataFile)) {
+    const initialData = {
+      counters: {
+        moradores: 0,
+        visitantes: 0,
+        encomendas: 0,
+      },
+      moradores: [],
+      visitantes: [],
+      encomendas: [],
+    };
+    fs.writeFileSync(dataFile, JSON.stringify(initialData, null, 2));
+  }
+}
+
+function readLocalData() {
+  ensureLocalStore();
+  return JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+}
+
+function writeLocalData(data) {
+  ensureLocalStore();
+  fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+}
+
+async function ensurePostgresSchema() {
+  const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+  const statements = schemaSql
+    .split(';')
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+
+  for (const statement of statements) {
+    await pool.query(statement);
+  }
+}
+
+function getMoradorFromLocal(data, id) {
+  return data.moradores.find((morador) => morador.id === Number(id));
+}
+
+async function initialize() {
+  loadEnvFile();
+
+  try {
+    await pool.query('SELECT 1');
+    await ensurePostgresSchema();
+    mode = 'postgres';
+    lastDatabaseError = null;
+    console.log('Armazenamento ativo: PostgreSQL');
+  } catch (error) {
+    mode = 'local';
+    lastDatabaseError = error;
+    ensureLocalStore();
+    console.warn('PostgreSQL indisponivel. Usando armazenamento local em arquivo.');
+    console.warn(error.message);
+  }
+}
+
+async function healthCheck() {
+  if (mode === 'postgres') {
+    try {
+      await pool.query('SELECT 1');
+      return {
+        ok: true,
+        storage: 'postgres',
+        message: 'API conectada ao PostgreSQL.',
+      };
+    } catch (error) {
+      lastDatabaseError = error;
+      mode = 'local';
+      ensureLocalStore();
+      return {
+        ok: true,
+        storage: 'local',
+        message: 'PostgreSQL indisponivel. App funcionando com armazenamento local.',
+        databaseError: error.message,
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    storage: 'local',
+    message: 'App funcionando com armazenamento local.',
+    databaseError: lastDatabaseError ? lastDatabaseError.message : null,
+  };
+}
+
+async function listMoradores() {
+  if (mode === 'postgres') {
+    const result = await pool.query(
+      'SELECT id, nome, apartamento, telefone FROM moradores ORDER BY nome ASC'
+    );
+    return result.rows;
+  }
+
+  const data = readLocalData();
+  return data.moradores.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+async function createMorador({ nome, apartamento, telefone }) {
+  if (mode === 'postgres') {
+    const result = await pool.query(
+      `INSERT INTO moradores (nome, apartamento, telefone)
+       VALUES ($1, $2, $3)
+       RETURNING id, nome, apartamento, telefone`,
+      [nome, apartamento, telefone]
+    );
+    return result.rows[0];
+  }
+
+  const data = readLocalData();
+  const morador = {
+    id: ++data.counters.moradores,
+    nome,
+    apartamento,
+    telefone,
+  };
+  data.moradores.push(morador);
+  writeLocalData(data);
+  return morador;
+}
+
+async function listVisitantes() {
+  if (mode === 'postgres') {
+    const result = await pool.query(
+      `SELECT
+         visitantes.id,
+         visitantes.nome,
+         visitantes.documento,
+         visitantes.autorizado_por,
+         visitantes.data_entrada,
+         moradores.nome AS morador_nome,
+         moradores.apartamento
+       FROM visitantes
+       LEFT JOIN moradores ON moradores.id = visitantes.autorizado_por
+       ORDER BY visitantes.data_entrada DESC`
+    );
+    return result.rows;
+  }
+
+  const data = readLocalData();
+  return data.visitantes
+    .map((visitante) => {
+      const morador = getMoradorFromLocal(data, visitante.autorizado_por);
+      return {
+        ...visitante,
+        morador_nome: morador ? morador.nome : null,
+        apartamento: morador ? morador.apartamento : null,
+      };
+    })
+    .sort((a, b) => new Date(b.data_entrada) - new Date(a.data_entrada));
+}
+
+async function createVisitante({ nome, documento, autorizado_por }) {
+  if (mode === 'postgres') {
+    const result = await pool.query(
+      `INSERT INTO visitantes (nome, documento, autorizado_por)
+       VALUES ($1, $2, $3)
+       RETURNING id, nome, documento, autorizado_por, data_entrada`,
+      [nome, documento, autorizado_por]
+    );
+    return result.rows[0];
+  }
+
+  const data = readLocalData();
+  const morador = getMoradorFromLocal(data, autorizado_por);
+  if (!morador) {
+    throw new Error('Morador autorizador nao encontrado.');
+  }
+
+  const visitante = {
+    id: ++data.counters.visitantes,
+    nome,
+    documento,
+    autorizado_por,
+    data_entrada: new Date().toISOString(),
+  };
+
+  data.visitantes.push(visitante);
+  writeLocalData(data);
+  return visitante;
+}
+
+async function listEncomendas() {
+  if (mode === 'postgres') {
+    const result = await pool.query(
+      `SELECT
+         encomendas.id,
+         encomendas.descricao,
+         encomendas.status,
+         encomendas.morador_id,
+         moradores.nome AS morador_nome,
+         moradores.apartamento
+       FROM encomendas
+       LEFT JOIN moradores ON moradores.id = encomendas.morador_id
+       ORDER BY encomendas.id DESC`
+    );
+    return result.rows;
+  }
+
+  const data = readLocalData();
+  return data.encomendas
+    .map((encomenda) => {
+      const morador = getMoradorFromLocal(data, encomenda.morador_id);
+      return {
+        ...encomenda,
+        morador_nome: morador ? morador.nome : null,
+        apartamento: morador ? morador.apartamento : null,
+      };
+    })
+    .sort((a, b) => b.id - a.id);
+}
+
+async function createEncomenda({ descricao, morador_id, status }) {
+  if (mode === 'postgres') {
+    const result = await pool.query(
+      `INSERT INTO encomendas (descricao, morador_id, status)
+       VALUES ($1, $2, COALESCE($3, 'pendente'))
+       RETURNING id, descricao, morador_id, status`,
+      [descricao, morador_id, status]
+    );
+    return result.rows[0];
+  }
+
+  const data = readLocalData();
+  const morador = getMoradorFromLocal(data, morador_id);
+  if (!morador) {
+    throw new Error('Morador da encomenda nao encontrado.');
+  }
+
+  const encomenda = {
+    id: ++data.counters.encomendas,
+    descricao,
+    morador_id,
+    status: status || 'pendente',
+  };
+
+  data.encomendas.push(encomenda);
+  writeLocalData(data);
+  return encomenda;
+}
+
+async function updateEncomendaStatus(id, status) {
+  if (mode === 'postgres') {
+    const result = await pool.query(
+      `UPDATE encomendas
+       SET status = $1
+       WHERE id = $2
+       RETURNING id, descricao, morador_id, status`,
+      [status, id]
+    );
+    return result.rows[0] || null;
+  }
+
+  const data = readLocalData();
+  const encomenda = data.encomendas.find((item) => item.id === id);
+  if (!encomenda) {
+    return null;
+  }
+
+  encomenda.status = status;
+  writeLocalData(data);
+  return encomenda;
+}
+
+module.exports = {
+  initialize,
+  healthCheck,
+  listMoradores,
+  createMorador,
+  listVisitantes,
+  createVisitante,
+  listEncomendas,
+  createEncomenda,
+  updateEncomendaStatus,
+};

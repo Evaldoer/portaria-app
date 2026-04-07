@@ -42,12 +42,14 @@ O arquivo [`db.js`](C:\Users\NITRO 5\portaria-app\backend\db.js) usa estes valor
 - `DB_PASSWORD=sua_senha`
 - `DB_PORT=5432`
 - `PORT=3000`
+- `HOST=0.0.0.0`
 
 Voce pode usar o arquivo [` .env.example `](C:\Users\NITRO 5\portaria-app\backend\.env.example) como referencia e definir as variaveis no PowerShell antes de iniciar:
 
 ```powershell
 $env:DB_PASSWORD="sua_senha_real"
 $env:PORT="3000"
+$env:HOST="0.0.0.0"
 ```
 
 ## Rodar o projeto
@@ -70,10 +72,22 @@ Modo watch nativo do Node:
 npm run dev:watch
 ```
 
+Para matar qualquer processo antigo na porta `3000` e subir o app certo:
+
+```powershell
+npm run start:clean
+```
+
 Depois, abra:
 
 ```text
 http://localhost:3000
+```
+
+Se quiser acessar pela rede local ou em um servidor, mantenha `HOST=0.0.0.0` e abra pelo IP da maquina:
+
+```text
+http://SEU_IP:3000
 ```
 
 ## Funcionalidades prontas
@@ -83,3 +97,17 @@ http://localhost:3000
 - cadastro e listagem de encomendas
 - atualizacao do status das encomendas
 - endpoint de saude em `/api/health`
+
+## Inicializar banco por script
+
+Para criar o banco `portaria` se necessario e aplicar o schema automaticamente:
+
+```powershell
+npm run db:init
+```
+
+Antes disso, defina a senha do PostgreSQL no PowerShell:
+
+```powershell
+$env:DB_PASSWORD="sua_senha_real"
+```

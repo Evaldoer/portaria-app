@@ -7,6 +7,8 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "dev:watch": "node --watch index.js",
+    "db:init": "powershell -ExecutionPolicy Bypass -File .\\init-db.ps1",
+    "start:clean": "powershell -ExecutionPolicy Bypass -File .\\start-app.ps1",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

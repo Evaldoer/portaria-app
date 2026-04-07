@@ -146,12 +146,13 @@ function updateMoradorOptions() {
 
 async function loadHealth() {
   try {
-    await request('/api/health');
-    elements.healthStatus.textContent = 'API conectada ao PostgreSQL.';
+    const health = await request('/api/health');
+    elements.healthStatus.textContent = health.message || 'Aplicacao ativa.';
     elements.statusDot.classList.add('online');
     elements.statusDot.classList.remove('offline');
   } catch (error) {
-    elements.healthStatus.textContent = 'Falha ao conectar com o banco.';
+    elements.healthStatus.textContent =
+      error.message || 'Falha ao verificar o status da aplicacao.';
     elements.statusDot.classList.add('offline');
     elements.statusDot.classList.remove('online');
   }
