@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portaria App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Gestao de condominio</p>
+          <h1>Portaria App</h1>
+          <p class="hero-copy">
+            Cadastre moradores, libere visitantes e acompanhe encomendas em uma
+            unica tela.
+          </p>
+        </div>
+        <div class="status-card">
+          <span class="status-dot"></span>
+          <div>
+            <strong>Status da API</strong>
+            <p id="health-status">Verificando conexao...</p>
+          </div>
+        </div>
+      </header>
+
+      <main class="dashboard">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Moradores</h2>
+            <p>Base de autorizadores do condominio.</p>
+          </div>
+
+          <form id="morador-form" class="form-grid">
+            <input name="nome" placeholder="Nome do morador" required />
+            <input name="apartamento" placeholder="Apartamento" required />
+            <input name="telefone" placeholder="Telefone" required />
+            <button type="submit">Cadastrar morador</button>
+          </form>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Apartamento</th>
+                  <th>Telefone</th>
+                </tr>
+              </thead>
+              <tbody id="moradores-list"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Visitantes</h2>
+            <p>Registro de entrada com autorizacao.</p>
+          </div>
+
+          <form id="visitante-form" class="form-grid">
+            <input name="nome" placeholder="Nome do visitante" required />
+            <input name="documento" placeholder="Documento" required />
+            <select name="autorizado_por" id="visitante-morador" required>
+              <option value="">Selecione o morador</option>
+            </select>
+            <button type="submit">Registrar visitante</button>
+          </form>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Visitante</th>
+                  <th>Documento</th>
+                  <th>Autorizado por</th>
+                  <th>Entrada</th>
+                </tr>
+              </thead>
+              <tbody id="visitantes-list"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <h2>Encomendas</h2>
+            <p>Controle de recebimento e retirada.</p>
+          </div>
+
+          <form id="encomenda-form" class="form-grid">
+            <input name="descricao" placeholder="Descricao da encomenda" required />
+            <select name="morador_id" id="encomenda-morador" required>
+              <option value="">Selecione o morador</option>
+            </select>
+            <select name="status">
+              <option value="pendente">Pendente</option>
+              <option value="recebida">Recebida</option>
+              <option value="retirada">Retirada</option>
+            </select>
+            <button type="submit">Cadastrar encomenda</button>
+          </form>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Descricao</th>
+                  <th>Morador</th>
+                  <th>Apartamento</th>
+                  <th>Status</th>
+                  <th>Atualizar</th>
+                </tr>
+              </thead>
+              <tbody id="encomendas-list"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>
