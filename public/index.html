@@ -40,10 +40,12 @@
           </div>
 
           <form id="morador-form" class="form-grid">
+            <input type="hidden" name="id" />
             <input name="nome" placeholder="Nome do morador" required />
             <input name="apartamento" placeholder="Apartamento" required />
             <input name="telefone" placeholder="Telefone" required />
-            <button type="submit">Cadastrar morador</button>
+            <button type="submit" data-submit-label>Cadastrar morador</button>
+            <button type="button" class="secondary-button hidden" data-cancel-button>Cancelar</button>
           </form>
 
           <div class="table-wrap">
@@ -53,6 +55,7 @@
                   <th>Nome</th>
                   <th>Apartamento</th>
                   <th>Telefone</th>
+                  <th>Acoes</th>
                 </tr>
               </thead>
               <tbody id="moradores-list"></tbody>
@@ -67,12 +70,14 @@
           </div>
 
           <form id="visitante-form" class="form-grid">
+            <input type="hidden" name="id" />
             <input name="nome" placeholder="Nome do visitante" required />
             <input name="documento" placeholder="Documento" required />
             <select name="autorizado_por" id="visitante-morador" required>
               <option value="">Selecione o morador</option>
             </select>
-            <button type="submit">Registrar visitante</button>
+            <button type="submit" data-submit-label>Registrar visitante</button>
+            <button type="button" class="secondary-button hidden" data-cancel-button>Cancelar</button>
           </form>
 
           <div class="table-wrap">
@@ -83,6 +88,7 @@
                   <th>Documento</th>
                   <th>Autorizado por</th>
                   <th>Entrada</th>
+                  <th>Acoes</th>
                 </tr>
               </thead>
               <tbody id="visitantes-list"></tbody>
@@ -97,6 +103,7 @@
           </div>
 
           <form id="encomenda-form" class="form-grid">
+            <input type="hidden" name="id" />
             <input name="descricao" placeholder="Descricao da encomenda" required />
             <select name="morador_id" id="encomenda-morador" required>
               <option value="">Selecione o morador</option>
@@ -106,7 +113,8 @@
               <option value="recebida">Recebida</option>
               <option value="retirada">Retirada</option>
             </select>
-            <button type="submit">Cadastrar encomenda</button>
+            <button type="submit" data-submit-label>Cadastrar encomenda</button>
+            <button type="button" class="secondary-button hidden" data-cancel-button>Cancelar</button>
           </form>
 
           <div class="table-wrap">
@@ -117,7 +125,7 @@
                   <th>Morador</th>
                   <th>Apartamento</th>
                   <th>Status</th>
-                  <th>Atualizar</th>
+                  <th>Acoes</th>
                 </tr>
               </thead>
               <tbody id="encomendas-list"></tbody>

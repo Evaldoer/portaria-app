@@ -44,6 +44,48 @@ app.post('/api/moradores', async (req, res) => {
   }
 });
 
+app.put('/api/moradores/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nome, apartamento, telefone } = req.body;
+
+  if (!nome || !apartamento || !telefone) {
+    return res
+      .status(400)
+      .json({ error: 'Informe nome, apartamento e telefone.' });
+  }
+
+  try {
+    const morador = await storage.updateMorador(Number(id), {
+      nome,
+      apartamento,
+      telefone,
+    });
+
+    if (!morador) {
+      return res.status(404).json({ error: 'Morador nao encontrado.' });
+    }
+
+    res.json(morador);
+  } catch (error) {
+    console.error('Erro ao atualizar morador:', error);
+    res.status(500).json({ error: error.message || 'Erro ao atualizar morador.' });
+  }
+});
+
+app.delete('/api/moradores/:id', async (req, res) => {
+  try {
+    const deleted = await storage.deleteMorador(Number(req.params.id));
+    if (!deleted) {
+      return res.status(404).json({ error: 'Morador nao encontrado.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir morador:', error);
+    res.status(500).json({ error: error.message || 'Erro ao excluir morador.' });
+  }
+});
+
 app.get('/api/visitantes', async (req, res) => {
   try {
     const visitantes = await storage.listVisitantes();
@@ -76,6 +118,48 @@ app.post('/api/visitantes', async (req, res) => {
   }
 });
 
+app.put('/api/visitantes/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nome, documento, autorizado_por } = req.body;
+
+  if (!nome || !documento || !autorizado_por) {
+    return res
+      .status(400)
+      .json({ error: 'Informe nome, documento e autorizado_por.' });
+  }
+
+  try {
+    const visitante = await storage.updateVisitante(Number(id), {
+      nome,
+      documento,
+      autorizado_por: Number(autorizado_por),
+    });
+
+    if (!visitante) {
+      return res.status(404).json({ error: 'Visitante nao encontrado.' });
+    }
+
+    res.json(visitante);
+  } catch (error) {
+    console.error('Erro ao atualizar visitante:', error);
+    res.status(500).json({ error: error.message || 'Erro ao atualizar visitante.' });
+  }
+});
+
+app.delete('/api/visitantes/:id', async (req, res) => {
+  try {
+    const deleted = await storage.deleteVisitante(Number(req.params.id));
+    if (!deleted) {
+      return res.status(404).json({ error: 'Visitante nao encontrado.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir visitante:', error);
+    res.status(500).json({ error: error.message || 'Erro ao excluir visitante.' });
+  }
+});
+
 app.get('/api/encomendas', async (req, res) => {
   try {
     const encomendas = await storage.listEncomendas();
@@ -105,6 +189,48 @@ app.post('/api/encomendas', async (req, res) => {
   } catch (error) {
     console.error('Erro ao cadastrar encomenda:', error);
     res.status(500).json({ error: error.message || 'Erro ao cadastrar encomenda.' });
+  }
+});
+
+app.put('/api/encomendas/:id', async (req, res) => {
+  const { id } = req.params;
+  const { descricao, morador_id, status } = req.body;
+
+  if (!descricao || !morador_id) {
+    return res
+      .status(400)
+      .json({ error: 'Informe descricao e morador_id.' });
+  }
+
+  try {
+    const encomenda = await storage.updateEncomenda(Number(id), {
+      descricao,
+      morador_id: Number(morador_id),
+      status,
+    });
+
+    if (!encomenda) {
+      return res.status(404).json({ error: 'Encomenda nao encontrada.' });
+    }
+
+    res.json(encomenda);
+  } catch (error) {
+    console.error('Erro ao atualizar encomenda:', error);
+    res.status(500).json({ error: error.message || 'Erro ao atualizar encomenda.' });
+  }
+});
+
+app.delete('/api/encomendas/:id', async (req, res) => {
+  try {
+    const deleted = await storage.deleteEncomenda(Number(req.params.id));
+    if (!deleted) {
+      return res.status(404).json({ error: 'Encomenda nao encontrada.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir encomenda:', error);
+    res.status(500).json({ error: error.message || 'Erro ao excluir encomenda.' });
   }
 });
 

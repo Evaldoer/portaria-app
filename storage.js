@@ -82,6 +82,14 @@ function getMoradorFromLocal(data, id) {
   return data.moradores.find((morador) => morador.id === Number(id));
 }
 
+function getVisitanteFromLocal(data, id) {
+  return data.visitantes.find((visitante) => visitante.id === Number(id));
+}
+
+function getEncomendaFromLocal(data, id) {
+  return data.encomendas.find((encomenda) => encomenda.id === Number(id));
+}
+
 async function initialize() {
   loadEnvFile();
 
@@ -165,6 +173,64 @@ async function createMorador({ nome, apartamento, telefone }) {
   return morador;
 }
 
+async function updateMorador(id, { nome, apartamento, telefone }) {
+  if (mode === 'postgres') {
+    const result = await pool.query(
+      `UPDATE moradores
+       SET nome = $1, apartamento = $2, telefone = $3
+       WHERE id = $4
+       RETURNING id, nome, apartamento, telefone`,
+      [nome, apartamento, telefone, id]
+    );
+    return result.rows[0] || null;
+  }
+
+  const data = readLocalData();
+  const morador = getMoradorFromLocal(data, id);
+  if (!morador) {
+    return null;
+  }
+
+  morador.nome = nome;
+  morador.apartamento = apartamento;
+  morador.telefone = telefone;
+  writeLocalData(data);
+  return morador;
+}
+
+async function deleteMorador(id) {
+  if (mode === 'postgres') {
+    const hasVisitantes = await pool.query(
+      'SELECT 1 FROM visitantes WHERE autorizado_por = $1 LIMIT 1',
+      [id]
+    );
+    const hasEncomendas = await pool.query(
+      'SELECT 1 FROM encomendas WHERE morador_id = $1 LIMIT 1',
+      [id]
+    );
+
+    if (hasVisitantes.rowCount > 0 || hasEncomendas.rowCount > 0) {
+      throw new Error('Nao e possivel excluir morador com visitantes ou encomendas vinculados.');
+    }
+
+    const result = await pool.query('DELETE FROM moradores WHERE id = $1 RETURNING id', [id]);
+    return result.rowCount > 0;
+  }
+
+  const data = readLocalData();
+  const hasVisitantes = data.visitantes.some((visitante) => visitante.autorizado_por === id);
+  const hasEncomendas = data.encomendas.some((encomenda) => encomenda.morador_id === id);
+
+  if (hasVisitantes || hasEncomendas) {
+    throw new Error('Nao e possivel excluir morador com visitantes ou encomendas vinculados.');
+  }
+
+  const originalLength = data.moradores.length;
+  data.moradores = data.moradores.filter((morador) => morador.id !== id);
+  writeLocalData(data);
+  return data.moradores.length !== originalLength;
+}
+
 async function listVisitantes() {
   if (mode === 'postgres') {
     const result = await pool.query(
@@ -226,6 +292,50 @@ async function createVisitante({ nome, documento, autorizado_por }) {
   return visitante;
 }
 
+async function updateVisitante(id, { nome, documento, autorizado_por }) {
+  if (mode === 'postgres') {
+    const result = await pool.query(
+      `UPDATE visitantes
+       SET nome = $1, documento = $2, autorizado_por = $3
+       WHERE id = $4
+       RETURNING id, nome, documento, autorizado_por, data_entrada`,
+      [nome, documento, autorizado_por, id]
+    );
+    return result.rows[0] || null;
+  }
+
+  const data = readLocalData();
+  const visitante = getVisitanteFromLocal(data, id);
+  const morador = getMoradorFromLocal(data, autorizado_por);
+
+  if (!visitante) {
+    return null;
+  }
+
+  if (!morador) {
+    throw new Error('Morador autorizador nao encontrado.');
+  }
+
+  visitante.nome = nome;
+  visitante.documento = documento;
+  visitante.autorizado_por = autorizado_por;
+  writeLocalData(data);
+  return visitante;
+}
+
+async function deleteVisitante(id) {
+  if (mode === 'postgres') {
+    const result = await pool.query('DELETE FROM visitantes WHERE id = $1 RETURNING id', [id]);
+    return result.rowCount > 0;
+  }
+
+  const data = readLocalData();
+  const originalLength = data.visitantes.length;
+  data.visitantes = data.visitantes.filter((visitante) => visitante.id !== id);
+  writeLocalData(data);
+  return data.visitantes.length !== originalLength;
+}
+
 async function listEncomendas() {
   if (mode === 'postgres') {
     const result = await pool.query(
@@ -285,6 +395,37 @@ async function createEncomenda({ descricao, morador_id, status }) {
   return encomenda;
 }
 
+async function updateEncomenda(id, { descricao, morador_id, status }) {
+  if (mode === 'postgres') {
+    const result = await pool.query(
+      `UPDATE encomendas
+       SET descricao = $1, morador_id = $2, status = COALESCE($3, status)
+       WHERE id = $4
+       RETURNING id, descricao, morador_id, status`,
+      [descricao, morador_id, status, id]
+    );
+    return result.rows[0] || null;
+  }
+
+  const data = readLocalData();
+  const encomenda = getEncomendaFromLocal(data, id);
+  const morador = getMoradorFromLocal(data, morador_id);
+
+  if (!encomenda) {
+    return null;
+  }
+
+  if (!morador) {
+    throw new Error('Morador da encomenda nao encontrado.');
+  }
+
+  encomenda.descricao = descricao;
+  encomenda.morador_id = morador_id;
+  encomenda.status = status || encomenda.status;
+  writeLocalData(data);
+  return encomenda;
+}
+
 async function updateEncomendaStatus(id, status) {
   if (mode === 'postgres') {
     const result = await pool.query(
@@ -308,14 +449,33 @@ async function updateEncomendaStatus(id, status) {
   return encomenda;
 }
 
+async function deleteEncomenda(id) {
+  if (mode === 'postgres') {
+    const result = await pool.query('DELETE FROM encomendas WHERE id = $1 RETURNING id', [id]);
+    return result.rowCount > 0;
+  }
+
+  const data = readLocalData();
+  const originalLength = data.encomendas.length;
+  data.encomendas = data.encomendas.filter((encomenda) => encomenda.id !== id);
+  writeLocalData(data);
+  return data.encomendas.length !== originalLength;
+}
+
 module.exports = {
   initialize,
   healthCheck,
   listMoradores,
   createMorador,
+  updateMorador,
+  deleteMorador,
   listVisitantes,
   createVisitante,
+  updateVisitante,
+  deleteVisitante,
   listEncomendas,
   createEncomenda,
+  updateEncomenda,
   updateEncomendaStatus,
+  deleteEncomenda,
 };

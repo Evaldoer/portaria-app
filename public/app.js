@@ -2,6 +2,11 @@ const state = {
   moradores: [],
   visitantes: [],
   encomendas: [],
+  editing: {
+    moradores: null,
+    visitantes: null,
+    encomendas: null,
+  },
 };
 
 const elements = {
@@ -16,6 +21,24 @@ const elements = {
   moradorForm: document.getElementById('morador-form'),
   visitanteForm: document.getElementById('visitante-form'),
   encomendaForm: document.getElementById('encomenda-form'),
+};
+
+const formConfigs = {
+  moradores: {
+    form: elements.moradorForm,
+    submitLabel: 'Cadastrar morador',
+    updateLabel: 'Salvar morador',
+  },
+  visitantes: {
+    form: elements.visitanteForm,
+    submitLabel: 'Registrar visitante',
+    updateLabel: 'Salvar visitante',
+  },
+  encomendas: {
+    form: elements.encomendaForm,
+    submitLabel: 'Cadastrar encomenda',
+    updateLabel: 'Salvar encomenda',
+  },
 };
 
 async function request(url, options = {}) {
@@ -47,6 +70,41 @@ function formatDate(value) {
   return new Date(value).toLocaleString('pt-BR');
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function setFormMode(key, item = null) {
+  state.editing[key] = item;
+  const config = formConfigs[key];
+  const submitButton = config.form.querySelector('[data-submit-label]');
+  const cancelButton = config.form.querySelector('[data-cancel-button]');
+
+  submitButton.textContent = item ? config.updateLabel : config.submitLabel;
+  cancelButton.classList.toggle('hidden', !item);
+}
+
+function resetForm(key) {
+  const config = formConfigs[key];
+  config.form.reset();
+  config.form.elements.id.value = '';
+  setFormMode(key, null);
+}
+
+function createActionButtons(type, id) {
+  return `
+    <div class="action-group">
+      <button type="button" class="table-button" data-action="edit-${type}" data-id="${id}">Editar</button>
+      <button type="button" class="table-button danger-button" data-action="delete-${type}" data-id="${id}">Excluir</button>
+    </div>
+  `;
+}
+
 function renderMoradores() {
   if (!state.moradores.length) {
     elements.moradoresList.innerHTML =
@@ -58,19 +116,21 @@ function renderMoradores() {
     .map(
       (morador) => `
         <tr>
-          <td>${morador.nome}</td>
-          <td>${morador.apartamento}</td>
-          <td>${morador.telefone}</td>
+          <td>${escapeHtml(morador.nome)}</td>
+          <td>${escapeHtml(morador.apartamento)}</td>
+          <td>${escapeHtml(morador.telefone)}</td>
+          <td>${createActionButtons('morador', morador.id)}</td>
         </tr>
       `
     )
     .join('');
+  bindRowActions();
 }
 
 function renderVisitantes() {
   if (!state.visitantes.length) {
     elements.visitantesList.innerHTML =
-      '<tr><td colspan="4" class="empty-state">Nenhum visitante registrado.</td></tr>';
+      '<tr><td colspan="5" class="empty-state">Nenhum visitante registrado.</td></tr>';
     return;
   }
 
@@ -78,14 +138,16 @@ function renderVisitantes() {
     .map(
       (visitante) => `
         <tr>
-          <td>${visitante.nome}</td>
-          <td>${visitante.documento}</td>
-          <td>${visitante.morador_nome || 'Nao informado'}${visitante.apartamento ? ` - Ap ${visitante.apartamento}` : ''}</td>
+          <td>${escapeHtml(visitante.nome)}</td>
+          <td>${escapeHtml(visitante.documento)}</td>
+          <td>${escapeHtml(visitante.morador_nome || 'Nao informado')}${visitante.apartamento ? ` - Ap ${escapeHtml(visitante.apartamento)}` : ''}</td>
           <td>${formatDate(visitante.data_entrada)}</td>
+          <td>${createActionButtons('visitante', visitante.id)}</td>
         </tr>
       `
     )
     .join('');
+  bindRowActions();
 }
 
 function renderEncomendas() {
@@ -99,10 +161,9 @@ function renderEncomendas() {
     .map(
       (encomenda) => `
         <tr>
-          <td>${encomenda.descricao}</td>
-          <td>${encomenda.morador_nome || 'Nao informado'}</td>
-          <td>${encomenda.apartamento || '-'}</td>
-          <td>${encomenda.status}</td>
+          <td>${escapeHtml(encomenda.descricao)}</td>
+          <td>${escapeHtml(encomenda.morador_nome || 'Nao informado')}</td>
+          <td>${escapeHtml(encomenda.apartamento || '-')}</td>
           <td>
             <select class="status-select" data-id="${encomenda.id}">
               <option value="pendente" ${encomenda.status === 'pendente' ? 'selected' : ''}>Pendente</option>
@@ -110,6 +171,7 @@ function renderEncomendas() {
               <option value="retirada" ${encomenda.status === 'retirada' ? 'selected' : ''}>Retirada</option>
             </select>
           </td>
+          <td>${createActionButtons('encomenda', encomenda.id)}</td>
         </tr>
       `
     )
@@ -128,6 +190,85 @@ function renderEncomendas() {
         showToast(error.message, true);
       }
     });
+  });
+
+  bindRowActions();
+}
+
+function bindRowActions() {
+  document.querySelectorAll('[data-action]').forEach((button) => {
+    button.onclick = async () => {
+      const { action, id } = button.dataset;
+      const itemId = Number(id);
+
+      if (action === 'edit-morador') {
+        const morador = state.moradores.find((item) => item.id === itemId);
+        if (!morador) return;
+        elements.moradorForm.elements.id.value = morador.id;
+        elements.moradorForm.elements.nome.value = morador.nome;
+        elements.moradorForm.elements.apartamento.value = morador.apartamento;
+        elements.moradorForm.elements.telefone.value = morador.telefone;
+        setFormMode('moradores', morador);
+        return;
+      }
+
+      if (action === 'delete-morador') {
+        if (!window.confirm('Deseja excluir este morador?')) return;
+        try {
+          await request(`/api/moradores/${itemId}`, { method: 'DELETE' });
+          await refreshAll();
+          showToast('Morador excluido com sucesso.');
+        } catch (error) {
+          showToast(error.message, true);
+        }
+        return;
+      }
+
+      if (action === 'edit-visitante') {
+        const visitante = state.visitantes.find((item) => item.id === itemId);
+        if (!visitante) return;
+        elements.visitanteForm.elements.id.value = visitante.id;
+        elements.visitanteForm.elements.nome.value = visitante.nome;
+        elements.visitanteForm.elements.documento.value = visitante.documento;
+        elements.visitanteForm.elements.autorizado_por.value = String(visitante.autorizado_por);
+        setFormMode('visitantes', visitante);
+        return;
+      }
+
+      if (action === 'delete-visitante') {
+        if (!window.confirm('Deseja excluir este visitante?')) return;
+        try {
+          await request(`/api/visitantes/${itemId}`, { method: 'DELETE' });
+          await refreshAll();
+          showToast('Visitante excluido com sucesso.');
+        } catch (error) {
+          showToast(error.message, true);
+        }
+        return;
+      }
+
+      if (action === 'edit-encomenda') {
+        const encomenda = state.encomendas.find((item) => item.id === itemId);
+        if (!encomenda) return;
+        elements.encomendaForm.elements.id.value = encomenda.id;
+        elements.encomendaForm.elements.descricao.value = encomenda.descricao;
+        elements.encomendaForm.elements.morador_id.value = String(encomenda.morador_id);
+        elements.encomendaForm.elements.status.value = encomenda.status;
+        setFormMode('encomendas', encomenda);
+        return;
+      }
+
+      if (action === 'delete-encomenda') {
+        if (!window.confirm('Deseja excluir esta encomenda?')) return;
+        try {
+          await request(`/api/encomendas/${itemId}`, { method: 'DELETE' });
+          await refreshAll();
+          showToast('Encomenda excluida com sucesso.');
+        } catch (error) {
+          showToast(error.message, true);
+        }
+      }
+    };
   });
 }
 
@@ -174,11 +315,15 @@ async function loadEncomendas() {
   renderEncomendas();
 }
 
+async function refreshAll() {
+  await Promise.all([loadMoradores(), loadVisitantes(), loadEncomendas()]);
+}
+
 async function bootstrap() {
   await loadHealth();
 
   try {
-    await Promise.all([loadMoradores(), loadVisitantes(), loadEncomendas()]);
+    await refreshAll();
   } catch (error) {
     showToast(error.message, true);
   }
@@ -188,15 +333,21 @@ elements.moradorForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const formData = new FormData(event.target);
+  const payload = Object.fromEntries(formData.entries());
+  const editingId = payload.id;
 
   try {
-    await request('/api/moradores', {
-      method: 'POST',
-      body: JSON.stringify(Object.fromEntries(formData.entries())),
+    await request(editingId ? `/api/moradores/${editingId}` : '/api/moradores', {
+      method: editingId ? 'PUT' : 'POST',
+      body: JSON.stringify({
+        nome: payload.nome,
+        apartamento: payload.apartamento,
+        telefone: payload.telefone,
+      }),
     });
-    event.target.reset();
-    await loadMoradores();
-    showToast('Morador cadastrado com sucesso.');
+    resetForm('moradores');
+    await refreshAll();
+    showToast(editingId ? 'Morador atualizado com sucesso.' : 'Morador cadastrado com sucesso.');
   } catch (error) {
     showToast(error.message, true);
   }
@@ -209,16 +360,17 @@ elements.visitanteForm.addEventListener('submit', async (event) => {
   const payload = Object.fromEntries(formData.entries());
 
   try {
-    await request('/api/visitantes', {
-      method: 'POST',
+    await request(payload.id ? `/api/visitantes/${payload.id}` : '/api/visitantes', {
+      method: payload.id ? 'PUT' : 'POST',
       body: JSON.stringify({
-        ...payload,
+        nome: payload.nome,
+        documento: payload.documento,
         autorizado_por: Number(payload.autorizado_por),
       }),
     });
-    event.target.reset();
-    await loadVisitantes();
-    showToast('Visitante registrado com sucesso.');
+    resetForm('visitantes');
+    await refreshAll();
+    showToast(payload.id ? 'Visitante atualizado com sucesso.' : 'Visitante registrado com sucesso.');
   } catch (error) {
     showToast(error.message, true);
   }
@@ -231,19 +383,26 @@ elements.encomendaForm.addEventListener('submit', async (event) => {
   const payload = Object.fromEntries(formData.entries());
 
   try {
-    await request('/api/encomendas', {
-      method: 'POST',
+    await request(payload.id ? `/api/encomendas/${payload.id}` : '/api/encomendas', {
+      method: payload.id ? 'PUT' : 'POST',
       body: JSON.stringify({
-        ...payload,
+        descricao: payload.descricao,
         morador_id: Number(payload.morador_id),
+        status: payload.status,
       }),
     });
-    event.target.reset();
-    await loadEncomendas();
-    showToast('Encomenda cadastrada com sucesso.');
+    resetForm('encomendas');
+    await refreshAll();
+    showToast(payload.id ? 'Encomenda atualizada com sucesso.' : 'Encomenda cadastrada com sucesso.');
   } catch (error) {
     showToast(error.message, true);
   }
+});
+
+Object.entries(formConfigs).forEach(([key, config]) => {
+  config.form.querySelector('[data-cancel-button]').addEventListener('click', () => {
+    resetForm(key);
+  });
 });
 
 bootstrap();
