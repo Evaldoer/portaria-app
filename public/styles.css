@@ -138,6 +138,10 @@ h1 {
   color: var(--muted);
 }
 
+.mobile-tabs {
+  display: none;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -396,6 +400,32 @@ tbody tr {
 }
 
 @media (max-width: 640px) {
+  .mobile-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 12px 0 14px;
+    position: sticky;
+    top: 8px;
+    z-index: 10;
+  }
+
+  .mobile-tab {
+    min-height: 44px;
+    padding: 10px 8px;
+    border-radius: 14px;
+    background: rgba(255, 251, 245, 0.92);
+    color: var(--text);
+    border: 1px solid rgba(93, 74, 54, 0.12);
+    box-shadow: 0 8px 18px rgba(55, 37, 19, 0.08);
+    font-size: 13px;
+  }
+
+  .mobile-tab.is-active {
+    background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+    color: #fff;
+  }
+
   .page-shell {
     width: min(100%, calc(100% - 12px));
     padding-top: 10px;
@@ -419,6 +449,10 @@ tbody tr {
   .panel {
     padding: 12px;
     border-radius: 18px;
+  }
+
+  .mobile-section-hidden {
+    display: none;
   }
 
   .eyebrow {

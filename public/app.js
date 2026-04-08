@@ -13,6 +13,8 @@ const elements = {
   healthStatus: document.getElementById('health-status'),
   statusDot: document.querySelector('.status-dot'),
   toast: document.getElementById('toast'),
+  mobileTabs: Array.from(document.querySelectorAll('.mobile-tab')),
+  mobileSections: Array.from(document.querySelectorAll('[data-mobile-section]')),
   moradoresList: document.getElementById('moradores-list'),
   visitantesList: document.getElementById('visitantes-list'),
   encomendasList: document.getElementById('encomendas-list'),
@@ -151,6 +153,19 @@ function openImageModal(src) {
 function closeImageModal() {
   elements.imageModalPreview.src = '';
   elements.imageModal.classList.add('hidden');
+}
+
+function setActiveMobileTab(target) {
+  elements.mobileTabs.forEach((tab) => {
+    tab.classList.toggle('is-active', tab.dataset.tabTarget === target);
+  });
+
+  elements.mobileSections.forEach((section) => {
+    section.classList.toggle(
+      'mobile-section-hidden',
+      window.innerWidth <= 640 && section.dataset.mobileSection !== target
+    );
+  });
 }
 
 async function fileToDataUrl(file) {
@@ -502,6 +517,17 @@ elements.imageModal.addEventListener('click', (event) => {
     closeImageModal();
   }
 });
+elements.mobileTabs.forEach((tab) => {
+  tab.addEventListener('click', () => {
+    setActiveMobileTab(tab.dataset.tabTarget);
+  });
+});
+window.addEventListener('resize', () => {
+  const activeTab =
+    elements.mobileTabs.find((tab) => tab.classList.contains('is-active'))?.dataset.tabTarget ||
+    'moradores';
+  setActiveMobileTab(activeTab);
+});
 
 Object.entries(formConfigs).forEach(([key, config]) => {
   config.form.querySelector('[data-cancel-button]').addEventListener('click', () => {
@@ -509,4 +535,5 @@ Object.entries(formConfigs).forEach(([key, config]) => {
   });
 });
 
+setActiveMobileTab('moradores');
 bootstrap();
