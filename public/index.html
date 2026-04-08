@@ -45,11 +45,32 @@
             <p>Base de autorizadores do condominio.</p>
           </div>
 
-          <form id="morador-form" class="form-grid">
+          <div class="compact-toolbar">
+            <label class="field-group compact-field">
+              <span class="field-label">Morador cadastrado</span>
+              <select id="morador-selector">
+                <option value="">Selecione um item na lista</option>
+              </select>
+            </label>
+            <button type="button" id="novo-morador-button" class="secondary-button compact-action">
+              Novo morador
+            </button>
+          </div>
+
+          <form id="morador-form" class="form-grid hidden-form">
             <input type="hidden" name="id" />
-            <input name="nome" placeholder="Nome do morador" required />
-            <input name="apartamento" placeholder="Apartamento" required />
-            <input name="telefone" placeholder="Telefone" required />
+            <label class="field-group">
+              <span class="field-label">Nome</span>
+              <input name="nome" placeholder="Nome do morador" required />
+            </label>
+            <label class="field-group">
+              <span class="field-label">Apartamento</span>
+              <input name="apartamento" placeholder="Apartamento" required />
+            </label>
+            <label class="field-group">
+              <span class="field-label">Telefone</span>
+              <input name="telefone" placeholder="Telefone" required />
+            </label>
             <button type="submit" data-submit-label>Cadastrar morador</button>
             <button type="button" class="secondary-button hidden" data-cancel-button>Cancelar</button>
           </form>

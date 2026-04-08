@@ -16,6 +16,8 @@ const elements = {
   mobileTabs: Array.from(document.querySelectorAll('.mobile-tab')),
   mobileSections: Array.from(document.querySelectorAll('[data-mobile-section]')),
   moradoresList: document.getElementById('moradores-list'),
+  moradorSelector: document.getElementById('morador-selector'),
+  novoMoradorButton: document.getElementById('novo-morador-button'),
   visitantesList: document.getElementById('visitantes-list'),
   encomendasList: document.getElementById('encomendas-list'),
   visitanteMorador: document.getElementById('visitante-morador'),
@@ -96,11 +98,20 @@ function setFormMode(key, item = null) {
   cancelButton.classList.toggle('hidden', !item);
 }
 
+function setMoradorFormVisibility(visible) {
+  elements.moradorForm.classList.toggle('hidden-form', !visible);
+}
+
 function resetForm(key) {
   const config = formConfigs[key];
   config.form.reset();
   config.form.elements.id.value = '';
   setFormMode(key, null);
+
+  if (key === 'moradores') {
+    elements.moradorSelector.value = '';
+    setMoradorFormVisibility(false);
+  }
 
   if (key === 'encomendas') {
     updatePhotoStatus();
@@ -205,7 +216,31 @@ function renderMoradores() {
       `
     )
     .join('');
+
+  elements.moradorSelector.innerHTML = `
+    <option value="">Selecione um item na lista</option>
+    ${state.moradores
+      .map(
+        (morador) =>
+          `<option value="${morador.id}">${escapeHtml(morador.nome)} - Ap ${escapeHtml(morador.apartamento)}</option>`
+      )
+      .join('')}
+  `;
+
   bindRowActions();
+}
+
+function loadMoradorIntoForm(morador) {
+  if (!morador) {
+    return;
+  }
+
+  setMoradorFormVisibility(true);
+  elements.moradorForm.elements.id.value = morador.id;
+  elements.moradorForm.elements.nome.value = morador.nome;
+  elements.moradorForm.elements.apartamento.value = morador.apartamento;
+  elements.moradorForm.elements.telefone.value = morador.telefone;
+  setFormMode('moradores', morador);
 }
 
 function renderVisitantes() {
@@ -287,11 +322,8 @@ function bindRowActions() {
       if (action === 'edit-morador') {
         const morador = state.moradores.find((item) => item.id === itemId);
         if (!morador) return;
-        elements.moradorForm.elements.id.value = morador.id;
-        elements.moradorForm.elements.nome.value = morador.nome;
-        elements.moradorForm.elements.apartamento.value = morador.apartamento;
-        elements.moradorForm.elements.telefone.value = morador.telefone;
-        setFormMode('moradores', morador);
+        elements.moradorSelector.value = String(morador.id);
+        loadMoradorIntoForm(morador);
         return;
       }
 
@@ -511,6 +543,21 @@ elements.encomendaForm.addEventListener('submit', async (event) => {
 
 elements.encomendaForm.elements.foto_recebida_arquivo.addEventListener('change', updatePhotoStatus);
 elements.encomendaForm.elements.foto_retirada_arquivo.addEventListener('change', updatePhotoStatus);
+elements.moradorSelector.addEventListener('change', (event) => {
+  const morador = state.moradores.find((item) => item.id === Number(event.target.value));
+
+  if (!morador) {
+    resetForm('moradores');
+    return;
+  }
+
+  loadMoradorIntoForm(morador);
+});
+elements.novoMoradorButton.addEventListener('click', () => {
+  resetForm('moradores');
+  setMoradorFormVisibility(true);
+  elements.moradorForm.elements.nome.focus();
+});
 elements.imageModalClose.addEventListener('click', closeImageModal);
 elements.imageModal.addEventListener('click', (event) => {
   if (event.target === elements.imageModal) {

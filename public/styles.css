@@ -149,6 +149,27 @@ h1 {
   margin-bottom: 18px;
 }
 
+.compact-toolbar {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.compact-field {
+  max-width: 320px;
+  flex: 1;
+}
+
+.compact-action {
+  width: auto;
+  min-width: 170px;
+}
+
+.hidden-form {
+  display: none;
+}
+
 .field-group {
   display: flex;
   flex-direction: column;
@@ -368,6 +389,20 @@ tbody tr {
 
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .compact-field {
+    max-width: none;
+  }
+
+  .compact-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .compact-action {
+    width: 100%;
+    min-width: 0;
   }
 
   .panel {
