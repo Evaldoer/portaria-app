@@ -182,10 +182,10 @@ function renderMoradores() {
     .map(
       (morador) => `
         <tr>
-          <td>${escapeHtml(morador.nome)}</td>
-          <td>${escapeHtml(morador.apartamento)}</td>
-          <td>${escapeHtml(morador.telefone)}</td>
-          <td>${createActionButtons('morador', morador.id)}</td>
+          <td data-label="Nome">${escapeHtml(morador.nome)}</td>
+          <td data-label="Apartamento">${escapeHtml(morador.apartamento)}</td>
+          <td data-label="Telefone">${escapeHtml(morador.telefone)}</td>
+          <td data-label="Acoes">${createActionButtons('morador', morador.id)}</td>
         </tr>
       `
     )
@@ -204,11 +204,11 @@ function renderVisitantes() {
     .map(
       (visitante) => `
         <tr>
-          <td>${escapeHtml(visitante.nome)}</td>
-          <td>${escapeHtml(visitante.documento)}</td>
-          <td>${escapeHtml(visitante.morador_nome || 'Nao informado')}${visitante.apartamento ? ` - Ap ${escapeHtml(visitante.apartamento)}` : ''}</td>
-          <td>${formatDate(visitante.data_entrada)}</td>
-          <td>${createActionButtons('visitante', visitante.id)}</td>
+          <td data-label="Visitante">${escapeHtml(visitante.nome)}</td>
+          <td data-label="Documento">${escapeHtml(visitante.documento)}</td>
+          <td data-label="Autorizado por">${escapeHtml(visitante.morador_nome || 'Nao informado')}${visitante.apartamento ? ` - Ap ${escapeHtml(visitante.apartamento)}` : ''}</td>
+          <td data-label="Entrada">${formatDate(visitante.data_entrada)}</td>
+          <td data-label="Acoes">${createActionButtons('visitante', visitante.id)}</td>
         </tr>
       `
     )
@@ -227,19 +227,19 @@ function renderEncomendas() {
     .map(
       (encomenda) => `
         <tr>
-          <td>${escapeHtml(encomenda.descricao)}</td>
-          <td>${escapeHtml(encomenda.morador_nome || 'Nao informado')}</td>
-          <td>${escapeHtml(encomenda.apartamento || '-')}</td>
-          <td>
+          <td data-label="Descricao">${escapeHtml(encomenda.descricao)}</td>
+          <td data-label="Morador">${escapeHtml(encomenda.morador_nome || 'Nao informado')}</td>
+          <td data-label="Apartamento">${escapeHtml(encomenda.apartamento || '-')}</td>
+          <td data-label="Status">
             <select class="status-select" data-id="${encomenda.id}">
               <option value="pendente" ${encomenda.status === 'pendente' ? 'selected' : ''}>Pendente</option>
               <option value="recebida" ${encomenda.status === 'recebida' ? 'selected' : ''}>Recebida</option>
               <option value="retirada" ${encomenda.status === 'retirada' ? 'selected' : ''}>Retirada</option>
             </select>
           </td>
-          <td>${createPhotoButton('foto-recebida', encomenda.id, Boolean(encomenda.foto_recebida))}</td>
-          <td>${createPhotoButton('foto-retirada', encomenda.id, Boolean(encomenda.foto_retirada))}</td>
-          <td>${createActionButtons('encomenda', encomenda.id)}</td>
+          <td data-label="Foto recebida">${createPhotoButton('foto-recebida', encomenda.id, Boolean(encomenda.foto_recebida))}</td>
+          <td data-label="Foto retirada">${createPhotoButton('foto-retirada', encomenda.id, Boolean(encomenda.foto_retirada))}</td>
+          <td data-label="Acoes">${createActionButtons('encomenda', encomenda.id)}</td>
         </tr>
       `
     )
